@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>作業時程推算儀表板</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.0.0/dist/tabler-icons.min.css">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #f5f4f0;
+  --surface: #ffffff;
+  --surface2: #f0ede8;
+  --border: rgba(0,0,0,0.10);
+  --border2: rgba(0,0,0,0.18);
+  --text: #1a1917;
+  --text2: #6b6860;
+  --text3: #9e9c97;
+  --blue: #185FA5;
+  --green: #3B6D11;
+  --red: #c0392b;
+  --amber: #b45309;
+  --amber-bg: #fef3cd;
+  --radius: 8px;
+  --radius-lg: 12px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #181715; --surface: #242320; --surface2: #2e2c28;
+    --border: rgba(255,255,255,0.09); --border2: rgba(255,255,255,0.16);
+    --text: #f0ede8; --text2: #a09d97; --text3: #6b6860;
+    --blue: #4d9fdb; --green: #72b341; --red: #e05c50;
+    --amber: #e8a430; --amber-bg: #2e1f08;
+  }
+}
+body { font-family: 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 2rem 1rem; }
+.container { max-width: 980px; margin: 0 auto; }
+.top-bar { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.75rem; flex-wrap: wrap; }
+.project-fields { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 220px; }
+.field-row { display: flex; align-items: center; gap: 10px; }
+.field-label { font-size: 12px; color: var(--text2); width: 80px; flex-shrink: 0; }
+.field-input { flex: 1; padding: 6px 10px; font-size: 13px; border: 0.5px solid var(--border2); border-radius: var(--radius); background: var(--surface); color: var(--text); font-family: inherit; }
+.field-input:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 2px rgba(24,95,165,0.15); }
+select.field-input { cursor: pointer; }
+.sub { font-size: 12px; color: var(--text3); margin-top: 2px; }
+.actions { flex-shrink: 0; margin-top: 4px; }
+button.primary { padding: 8px 16px; font-size: 13px; font-family: inherit; border: none; border-radius: var(--radius); background: var(--text); color: var(--bg); cursor: pointer; display: flex; align-items: center; gap: 6px; }
+button.primary:hover { opacity: 0.82; }
+button.primary:active { transform: scale(0.98); }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 1.75rem; }
+.card { background: var(--surface2); border-radius: var(--radius); padding: .85rem 1.1rem; }
+.card-label { font-size: 11px; color: var(--text3); margin-bottom: 6px; }
+.card-val { font-size: 24px; font-weight: 600; color: var(--text); line-height: 1; }
+.card-val .unit { font-size: 13px; font-weight: 400; color: var(--text2); margin-left: 2px; }
+.card-val.danger { color: var(--red); }
+.card-val.warn { color: var(--amber); }
+.divider { border: none; border-top: 0.5px solid var(--border); margin: 1.5rem 0; }
+.section-label { font-size: 11px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--text3); margin-bottom: 10px; }
+.tables-grid { display: grid; gap: 1.25rem; }
+.tables-grid.both { grid-template-columns: 1fr 1fr; }
+.tables-grid.single { grid-template-columns: 1fr; }
+@media (max-width: 620px) { .tables-grid.both { grid-template-columns: 1fr; } }
+.stage-table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; background: var(--surface); border-radius: var(--radius-lg); overflow: hidden; border: 0.5px solid var(--border); }
+.stage-table th { text-align: left; padding: 8px 10px; font-size: 11px; font-weight: 600; color: var(--text3); background: var(--surface2); border-bottom: 0.5px solid var(--border); }
+.stage-table td { padding: 7px 10px; border-bottom: 0.5px solid var(--border); vertical-align: top; color: var(--text); }
+.stage-table .total-row td { background: var(--surface2); font-weight: 600; font-size: 12px; color: var(--text2); vertical-align: middle; border-bottom: none; }
+.drag-handle { cursor: grab; color: var(--text3); font-size: 16px; padding: 2px 2px; display: flex; align-items: center; user-select: none; }
+.drag-handle:active { cursor: grabbing; }
+.drag-handle:hover { color: var(--text2); }
+.task-row { transition: opacity 0.15s; }
+.task-row.dragging { opacity: 0.3; }
+.task-row.drag-over-top td { box-shadow: inset 0 2px 0 0 var(--blue); }
+.task-row.drag-over-bottom td { box-shadow: inset 0 -2px 0 0 var(--blue); }
+.name-input { width: 100%; padding: 4px 6px; font-size: 13px; font-family: inherit; border: 0.5px solid var(--border2); border-radius: var(--radius); background: var(--bg); color: var(--text); }
+.name-input:focus { outline: none; border-color: var(--blue); }
+input[type=number] { width: 64px; padding: 4px 5px; font-size: 13px; font-family: inherit; border: 0.5px solid var(--border2); border-radius: var(--radius); background: var(--bg); color: var(--text); text-align: center; }
+input[type=number]:focus { outline: none; border-color: var(--blue); }
+.note-input { width: 100%; padding: 3px 0; font-size: 11px; font-family: inherit; border: none; border-bottom: 0.5px solid var(--border); background: transparent; color: var(--text2); resize: none; line-height: 1.5; outline: none; margin-top: 2px; }
+.note-input::placeholder { color: var(--text3); }
+.note-input:focus { border-bottom-color: var(--blue); }
+.icon-btn { background: transparent; border: none; cursor: pointer; padding: 4px; border-radius: 5px; color: var(--text3); display: flex; align-items: center; font-size: 15px; line-height: 1; }
+.icon-btn:hover { background: var(--surface2); color: var(--text); }
+.icon-btn.danger:hover { color: var(--red); }
+.add-btn { margin-top: 10px; padding: 6px 12px; font-size: 12px; font-family: inherit; border: 0.5px dashed var(--border2); border-radius: var(--radius); background: transparent; color: var(--text2); cursor: pointer; display: flex; align-items: center; gap: 6px; width: 100%; }
+.add-btn:hover { background: var(--surface); color: var(--text); }
+.gantt-wrap { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-lg); overflow-x: auto; margin-top: 1.25rem; }
+.gantt { width: 100%; border-collapse: collapse; font-size: 11px; min-width: 560px; }
+.gantt th, .gantt td { padding: 5px 5px; border: 0.5px solid var(--border); text-align: center; white-space: nowrap; }
+.gantt thead th { background: var(--surface2); font-weight: 600; font-size: 10px; color: var(--text3); border-bottom: 0.5px solid var(--border2); }
+.gantt td.tn { text-align: left; min-width: 150px; font-size: 12px; background: var(--surface); color: var(--text); position: sticky; left: 0; z-index: 1; }
+.gantt thead th.tn { position: sticky; left: 0; z-index: 2; }
+.gantt tr.cat-row td { background: var(--surface2); font-weight: 600; font-size: 11px; color: var(--text2); text-align: left; border-bottom: 0.5px solid var(--border2); }
+.gantt tr.total-row-g td { background: var(--surface2); font-weight: 600; font-size: 11px; }
+.gantt tr.warn-row td { background: var(--amber-bg); }
+.legend { display: flex; gap: 20px; flex-wrap: wrap; font-size: 12px; color: var(--text2); margin-top: 12px; }
+.legend span { display: flex; align-items: center; gap: 6px; }
+.legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="top-bar">
+    <div class="project-fields">
+      <div class="field-row">
+        <span class="field-label">專案名稱</span>
+        <input class="field-input" id="proj-name" type="text" placeholder="請輸入專案名稱">
+      </div>
+      <div class="field-row">
+        <span class="field-label">類型</span>
+        <input class="field-input" id="proj-type" type="text" placeholder="請輸入類型">
+      </div>
+      <div class="field-row">
+        <span class="field-label">申請階段</span>
+        <select class="field-input" id="stage-mode" onchange="onModeChange()">
+          <option value="both">候選 + 標章</option>
+          <option value="a">候選</option>
+          <option value="b">標章</option>
+        </select>
+      </div>
+      <div class="sub">截止日期：2027年8月底　｜　所有欄位均可調整</div>
+    </div>
+    <div class="actions">
+      <button class="primary" onclick="exportPDF()">
+        <i class="ti ti-file-type-pdf"></i> 匯出 PDF
+      </button>
+    </div>
+  </div>
+
+  <div class="cards" id="summary-cards"></div>
+  <hr class="divider">
+
+  <div class="tables-grid both" id="tables-grid">
+    <div id="col-a">
+      <div class="section-label">候選階段</div>
+      <div id="section-a"></div>
+    </div>
+    <div id="col-b">
+      <div class="section-label">標章階段</div>
+      <div id="section-b"></div>
+    </div>
+  </div>
+
+  <div style="margin-top: 1.5rem;">
+    <div class="section-label">甘特圖（月份排程）</div>
+    <div class="gantt-wrap">
+      <table class="gantt" id="gantt"></table>
+    </div>
+    <div class="legend" id="legend"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+const DL = 15;
+const ML = [];
+for (let i = 0; i < DL; i++) {
+  const d = new Date(2026, 5 + i, 1);
+  ML.push((d.getMonth() + 1) + '月' + (i === 0 ? d.getFullYear() : ''));
+}
+
+let uid = 100;
+function nid() { return 't' + (uid++); }
+
+let dataA = [
+  { id: nid(), name: '繪圖、資料蒐集', months: 3, note: '' },
+  { id: nid(), name: '製作報告書', months: 2, note: '' },
+  { id: nid(), name: '評定意見', months: 3, note: '' },
+  { id: nid(), name: '候選評定報告書', months: 1, note: '' },
+  { id: nid(), name: '換證', months: 2, note: '' },
+];
+let dataB = [
+  { id: nid(), name: '施工', months: 2, note: '' },
+  { id: nid(), name: '現勘確認現況（含資料製作）', months: 2, note: '' },
+  { id: nid(), name: '評定意見', months: 3, note: '' },
+  { id: nid(), name: '委員現勘', months: 0.5, note: '' },
+  { id: nid(), name: '標章評定報告書', months: 1, note: '' },
+  { id: nid(), name: '換證', months: 2, note: '' },
+];
+
+function getMode() { return document.getElementById('stage-mode').value; }
+function sm(data) { return data.reduce((s, t) => s + t.months, 0); }
+
+function syncAll() {
+  [...dataA, ...dataB].forEach(t => {
+    const ni = document.getElementById('n-' + t.id);
+    const mi = document.getElementById('m-' + t.id);
+    const oi = document.getElementById('o-' + t.id);
+    if (ni) t.name = ni.value;
+    if (mi) t.months = parseFloat(mi.value) || 0;
+    if (oi) t.note = oi.value;
+  });
+}
+
+function dataFromId(elId, field, taskId) {
+  const el = document.getElementById(elId); if (!el) return;
+  const t = [...dataA, ...dataB].find(x => x.id === taskId); if (!t) return;
+  t[field] = field === 'months' ? (parseFloat(el.value) || 0) : el.value;
+}
+
+function updateTotals() {
+  const ta = document.getElementById('tot-section-a');
+  const tb = document.getElementById('tot-section-b');
+  if (ta) ta.textContent = sm(dataA).toFixed(1);
+  if (tb) tb.textContent = sm(dataB).toFixed(1);
+}
+
+function renderSection(containerId, data, addFn) {
+  const el = document.getElementById(containerId); if (!el) return;
+  el.innerHTML = `
+  <table class="stage-table">
+    <thead><tr>
+      <th style="width:7%"></th>
+      <th style="width:41%">作業階段</th>
+      <th style="width:24%;text-align:center">時間（月）</th>
+      <th style="width:28%;text-align:center">操作</th>
+    </tr></thead>
+    <tbody id="tbody-${containerId}">
+      ${data.map((t, i) => `
+        <tr class="task-row" draggable="true" data-id="${t.id}" data-section="${containerId}">
+          <td style="border-bottom:none;padding-bottom:2px;vertical-align:middle">
+            <span class="drag-handle" title="拖曳排序"><i class="ti ti-grip-vertical"></i></span>
+          </td>
+          <td style="border-bottom:none;padding-bottom:2px">
+            <input class="name-input" id="n-${t.id}" value="${t.name}" placeholder="階段名稱"
+              oninput="dataFromId('n-${t.id}','name','${t.id}');updateGantt()">
+          </td>
+          <td style="text-align:center;border-bottom:none;vertical-align:middle">
+            <input type="number" id="m-${t.id}" value="${t.months}" min="0" max="36" step="0.5"
+              oninput="dataFromId('m-${t.id}','months','${t.id}');updateCards();updateGantt();updateTotals()">
+          </td>
+          <td style="text-align:center;border-bottom:none;vertical-align:middle">
+            <button class="icon-btn danger" onclick="removeRow('${containerId}','${t.id}')" title="刪除">
+              <i class="ti ti-trash"></i>
+            </button>
+          </td>
+        </tr>
+        <tr class="note-row" data-id="${t.id}">
+          <td style="padding-top:2px;padding-bottom:8px"></td>
+          <td colspan="3" style="padding-top:2px;padding-bottom:8px">
+            <textarea class="note-input" id="o-${t.id}" rows="1" placeholder="備註說明..."
+              oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px';dataFromId('o-${t.id}','note','${t.id}')">${t.note}</textarea>
+          </td>
+        </tr>
+      `).join('')}
+      <tr class="total-row">
+        <td></td>
+        <td>合計</td>
+        <td style="text-align:center" id="tot-${containerId}">${sm(data).toFixed(1)}</td>
+        <td></td>
+      </tr>
+    </tbody>
+  </table>
+  <button class="add-btn" onclick="${addFn}()">
+    <i class="ti ti-plus"></i> 新增階段
+  </button>`;
+  initDrag(containerId, data);
+}
+
+function initDrag(containerId, data) {
+  const tbody = document.getElementById('tbody-' + containerId); if (!tbody) return;
+  let dragId = null;
+  tbody.querySelectorAll('tr.task-row').forEach(row => {
+    row.addEventListener('dragstart', e => {
+      dragId = row.dataset.id;
+      setTimeout(() => row.classList.add('dragging'), 0);
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    row.addEventListener('dragend', () => {
+      row.classList.remove('dragging');
+      tbody.querySelectorAll('tr').forEach(r => r.classList.remove('drag-over-top', 'drag-over-bottom'));
+      dragId = null;
+    });
+    row.addEventListener('dragover', e => {
+      e.preventDefault();
+      if (!dragId || row.dataset.id === dragId) return;
+      tbody.querySelectorAll('tr.task-row').forEach(r => r.classList.remove('drag-over-top', 'drag-over-bottom'));
+      const rect = row.getBoundingClientRect();
+      row.classList.add(e.clientY < rect.top + rect.height / 2 ? 'drag-over-top' : 'drag-over-bottom');
+    });
+    row.addEventListener('dragleave', () => row.classList.remove('drag-over-top', 'drag-over-bottom'));
+    row.addEventListener('drop', e => {
+      e.preventDefault();
+      if (!dragId || row.dataset.id === dragId) return;
+      const rect = row.getBoundingClientRect();
+      const before = e.clientY < rect.top + rect.height / 2;
+      syncAll();
+      const fromIdx = data.findIndex(t => t.id === dragId);
+      let toIdx = data.findIndex(t => t.id === row.dataset.id);
+      if (fromIdx === -1 || toIdx === -1) return;
+      const [moved] = data.splice(fromIdx, 1);
+      toIdx = data.findIndex(t => t.id === row.dataset.id);
+      data.splice(before ? toIdx : toIdx + 1, 0, moved);
+      renderSection(containerId, data, containerId === 'section-a' ? 'addRowA' : 'addRowB');
+      updateGantt();
+    });
+  });
+}
+
+function addRowA() { syncAll(); dataA.push({ id: nid(), name: '', months: 1, note: '' }); renderSection('section-a', dataA, 'addRowA'); updateCards(); updateGantt(); }
+function addRowB() { syncAll(); dataB.push({ id: nid(), name: '', months: 1, note: '' }); renderSection('section-b', dataB, 'addRowB'); updateCards(); updateGantt(); }
+
+function removeRow(cid, taskId) {
+  syncAll();
+  if (cid === 'section-a') { if (dataA.length <= 1) return; dataA = dataA.filter(t => t.id !== taskId); renderSection('section-a', dataA, 'addRowA'); }
+  else { if (dataB.length <= 1) return; dataB = dataB.filter(t => t.id !== taskId); renderSection('section-b', dataB, 'addRowB'); }
+  updateCards(); updateGantt();
+}
+
+function updateCards() {
+  const mode = getMode(), sA = sm(dataA), sB = sm(dataB);
+  let cards = '';
+  if (mode === 'both') {
+    const grand = sA + sB, delay = grand - DL, dc = delay > 0 ? 'danger' : delay > -2 ? 'warn' : '';
+    cards = `<div class="card"><div class="card-label">候選階段合計</div><div class="card-val ${sA > DL ? 'danger' : ''}">${sA.toFixed(1)}<span class="unit"> 月</span></div></div>
+    <div class="card"><div class="card-label">標章階段合計</div><div class="card-val ${sB > DL ? 'danger' : ''}">${sB.toFixed(1)}<span class="unit"> 月</span></div></div>
+    <div class="card"><div class="card-label">截止可用月數</div><div class="card-val">${DL}<span class="unit"> 月</span></div></div>
+    <div class="card"><div class="card-label">預計延遲</div><div class="card-val ${dc}">${delay > 0 ? '+' + delay.toFixed(1) : delay.toFixed(1)}<span class="unit"> 月</span></div></div>`;
+  } else if (mode === 'a') {
+    const delay = sA - DL, dc = delay > 0 ? 'danger' : delay > -2 ? 'warn' : '';
+    cards = `<div class="card"><div class="card-label">候選階段合計</div><div class="card-val ${sA > DL ? 'danger' : ''}">${sA.toFixed(1)}<span class="unit"> 月</span></div></div>
+    <div class="card"><div class="card-label">截止可用月數</div><div class="card-val">${DL}<span class="unit"> 月</span></div></div>
+    <div class="card"><div class="card-label">預計延遲</div><div class="card-val ${dc}">${delay > 0 ? '+' + delay.toFixed(1) : delay.toFixed(1)}<span class="unit"> 月</span></div></div>`;
+  } else {
+    const delay = sB - DL, dc = delay > 0 ? 'danger' : delay > -2 ? 'warn' : '';
+    cards = `<div class="card"><div class="card-label">標章階段合計</div><div class="card-val ${sB > DL ? 'danger' : ''}">${sB.toFixed(1)}<span class="unit"> 月</span></div></div>
+    <div class="card"><div class="card-label">截止可用月數</div><div class="card-val">${DL}<span class="unit"> 月</span></div></div>
+    <div class="card"><div class="card-label">預計延遲</div><div class="card-val ${dc}">${delay > 0 ? '+' + delay.toFixed(1) : delay.toFixed(1)}<span class="unit"> 月</span></div></div>`;
+  }
+  document.getElementById('summary-cards').innerHTML = cards;
+}
+
+function updateGantt() {
+  const mode = getMode();
+  const el = document.getElementById('gantt');
+  const hd = `<tr><th class="tn">作業階段</th>${ML.map(m => `<th>${m}</th>`).join('')}</tr>`;
+  function rows(data, cat, color, offset) {
+    let r = `<tr class="cat-row"><td colspan="${DL + 1}">${cat}</td></tr>`;
+    let cur = offset;
+    data.forEach(t => {
+      const dur = t.months, end = cur + dur;
+      let cells = '', i = 0;
+      while (i < DL) {
+        if (i >= cur && i < end) {
+          const sp = Math.max(1, Math.round(end - cur)), cp = Math.min(sp, DL - i);
+          cells += `<td colspan="${cp}" style="padding:3px"><div style="background:${end > DL ? '#E24B4A' : color};border-radius:2px;height:14px"></div></td>`;
+          i += cp;
+        } else { cells += `<td></td>`; i++; }
+      }
+      r += `<tr><td class="tn">${t.name || '（未命名）'}</td>${cells}</tr>`;
+      cur += dur;
+    });
+    const tot = sm(data), ov = (offset + tot) > DL;
+    r += `<tr class="${ov ? 'warn-row' : 'total-row-g'}"><td class="tn">小計</td><td colspan="${DL}" style="text-align:left;font-size:11px;color:${ov ? '#c0392b' : '#9e9c97'}">共 ${tot.toFixed(1)} 月${ov ? ' ⚠ 超出截止日期' : ''}</td></tr>`;
+    return r;
+  }
+  let body = '';
+  if (mode === 'both' || mode === 'a') body += rows(dataA, '候選階段', '#185FA5', 0);
+  if (mode === 'both') body += rows(dataB, '標章階段', '#3B6D11', sm(dataA));
+  else if (mode === 'b') body += rows(dataB, '標章階段', '#3B6D11', 0);
+  el.innerHTML = `<thead>${hd}</thead><tbody>${body}</tbody>`;
+  let legend = '';
+  if (mode === 'both' || mode === 'a') legend += `<span><span class="legend-dot" style="background:#185FA5"></span>候選階段</span>`;
+  if (mode === 'both' || mode === 'b') legend += `<span><span class="legend-dot" style="background:#3B6D11"></span>標章階段</span>`;
+  legend += `<span><span class="legend-dot" style="background:#E24B4A"></span>超出截止</span>`;
+  document.getElementById('legend').innerHTML = legend;
+}
+
+function onModeChange() {
+  syncAll();
+  const mode = getMode();
+  document.getElementById('col-a').style.display = (mode === 'both' || mode === 'a') ? '' : 'none';
+  document.getElementById('col-b').style.display = (mode === 'both' || mode === 'b') ? '' : 'none';
+  document.getElementById('tables-grid').className = 'tables-grid ' + (mode === 'both' ? 'both' : 'single');
+  updateCards(); updateGantt();
+}
+
+function exportPDF() {
+  syncAll();
+  const name = document.getElementById('proj-name').value || '作業時程推算';
+  const type = document.getElementById('proj-type').value;
+  const title = name + (type ? '　' + type : '');
+  const clone = document.querySelector('.container').cloneNode(true);
+  clone.querySelectorAll('input[type=number]').forEach(inp => {
+    const sp = document.createElement('span'); sp.textContent = inp.value;
+    sp.style.cssText = 'display:inline-block;width:64px;text-align:center;font-size:13px;border:0.5px solid #ccc;border-radius:4px;padding:4px 5px';
+    inp.replaceWith(sp);
+  });
+  clone.querySelectorAll('input.name-input').forEach(inp => {
+    const sp = document.createElement('span'); sp.textContent = inp.value; sp.style.cssText = 'font-size:13px'; inp.replaceWith(sp);
+  });
+  clone.querySelectorAll('textarea').forEach(ta => {
+    const sp = document.createElement('span'); sp.textContent = ta.value; sp.style.cssText = 'display:block;font-size:11px;color:#666;padding:2px 0'; ta.replaceWith(sp);
+  });
+  clone.querySelectorAll('.actions, .add-btn, .drag-handle, .icon-btn').forEach(el => el.remove());
+  clone.querySelectorAll('.field-input').forEach(inp => {
+    const sp = document.createElement('span'); sp.textContent = inp.value; sp.style.cssText = 'font-size:13px;color:#333'; inp.replaceWith(sp);
+  });
+  const hdr = document.createElement('div');
+  hdr.style.cssText = 'margin-bottom:1rem;border-bottom:1px solid #ddd;padding-bottom:.75rem';
+  hdr.innerHTML = `<h1 style="font-size:16px;font-weight:600;margin-bottom:4px">${title}</h1><p style="font-size:12px;color:#888">截止日期：2027年8月底　｜　匯出時間：${new Date().toLocaleDateString('zh-TW')}</p>`;
+  clone.insertBefore(hdr, clone.firstChild);
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = 'font-family:sans-serif;padding:1.5rem;background:#fff;color:#1a1917';
+  wrapper.appendChild(clone);
+  html2pdf().set({
+    margin: [10, 10, 10, 10],
+    filename: `${name}_時程推算.pdf`,
+    image: { type: 'jpeg', quality: 0.97 },
+    html2canvas: { scale: 2, useCORS: true },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+  }).from(wrapper).save();
+}
+
+renderSection('section-a', dataA, 'addRowA');
+renderSection('section-b', dataB, 'addRowB');
+updateCards();
+updateGantt();
+</script>
+</body>
+</html>
