@@ -1,0 +1,487 @@
+ <!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>作業時程推算儀表板</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f5f4f0;
+    --surface: #ffffff;
+    --surface2: #f0ede8;
+    --border: rgba(0,0,0,0.10);
+    --border2: rgba(0,0,0,0.18);
+    --text: #1a1917;
+    --text2: #6b6860;
+    --text3: #9e9c97;
+    --blue: #185FA5;
+    --blue-light: #deeaf7;
+    --blue-text: #0c3d6e;
+    --green: #3B6D11;
+    --green-light: #e4f0d4;
+    --green-text: #244208;
+    --red: #c0392b;
+    --amber: #b45309;
+    --amber-bg: #fef3cd;
+    --radius: 8px;
+    --radius-lg: 12px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #181715;
+      --surface: #242320;
+      --surface2: #2e2c28;
+      --border: rgba(255,255,255,0.09);
+      --border2: rgba(255,255,255,0.16);
+      --text: #f0ede8;
+      --text2: #a09d97;
+      --text3: #6b6860;
+      --blue: #4d9fdb;
+      --blue-light: #162a3e;
+      --blue-text: #a8d0f0;
+      --green: #72b341;
+      --green-light: #182810;
+      --green-text: #aad880;
+      --red: #e05c50;
+      --amber: #e8a430;
+      --amber-bg: #2e1f08;
+    }
+  }
+
+  body {
+    font-family: 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 2rem 1rem;
+  }
+
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+  }
+
+  header {
+    margin-bottom: 2rem;
+  }
+
+  header h1 {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+
+  header p {
+    font-size: 13px;
+    color: var(--text2);
+  }
+
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 2rem;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1rem 1.25rem;
+  }
+
+  .card-label {
+    font-size: 11px;
+    color: var(--text3);
+    margin-bottom: 6px;
+    letter-spacing: 0.03em;
+  }
+
+  .card-val {
+    font-size: 26px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  .card-val .unit {
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--text2);
+    margin-left: 2px;
+  }
+
+  .card-val.danger { color: var(--red); }
+  .card-val.warn { color: var(--amber); }
+
+  .tables-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  @media (max-width: 600px) {
+    .tables-grid { grid-template-columns: 1fr; }
+  }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text3);
+    margin-bottom: 10px;
+  }
+
+  .table-wrap {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  thead th {
+    background: var(--surface2);
+    padding: 8px 12px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text3);
+    letter-spacing: 0.03em;
+    border-bottom: 0.5px solid var(--border);
+  }
+
+  thead th:last-child { text-align: center; }
+
+  tbody td {
+    padding: 9px 12px;
+    border-bottom: 0.5px solid var(--border);
+    color: var(--text);
+    vertical-align: middle;
+  }
+
+  tbody tr:last-child td { border-bottom: none; }
+
+  tbody td:last-child { text-align: center; }
+
+  .total-row td {
+    background: var(--surface2);
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--text2);
+  }
+
+  input[type=number] {
+    width: 68px;
+    padding: 5px 8px;
+    font-size: 13px;
+    font-family: inherit;
+    border: 0.5px solid var(--border2);
+    border-radius: var(--radius);
+    background: var(--bg);
+    color: var(--text);
+    text-align: center;
+    transition: border-color 0.15s;
+  }
+
+  input[type=number]:focus {
+    outline: none;
+    border-color: var(--blue);
+    box-shadow: 0 0 0 2px rgba(24,95,165,0.15);
+  }
+
+  input[type=number]::-webkit-inner-spin-button,
+  input[type=number]::-webkit-outer-spin-button { opacity: 0.5; }
+
+  .gantt-section { margin-bottom: 1.5rem; }
+
+  .gantt-wrap {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow-x: auto;
+  }
+
+  .gantt {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    min-width: 560px;
+  }
+
+  .gantt th, .gantt td {
+    padding: 6px 5px;
+    border: 0.5px solid var(--border);
+    text-align: center;
+    white-space: nowrap;
+    color: var(--text2);
+  }
+
+  .gantt thead th {
+    background: var(--surface2);
+    font-weight: 600;
+    font-size: 10px;
+    color: var(--text3);
+    letter-spacing: 0.02em;
+    border-bottom: 0.5px solid var(--border2);
+  }
+
+  .gantt td.task-name {
+    text-align: left;
+    min-width: 150px;
+    max-width: 150px;
+    color: var(--text);
+    background: var(--surface);
+    font-size: 12px;
+    position: sticky;
+    left: 0;
+    z-index: 1;
+  }
+
+  .gantt thead th.task-name {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+  }
+
+  .gantt tr.cat-row td {
+    background: var(--surface2);
+    font-weight: 600;
+    font-size: 11px;
+    color: var(--text2);
+    text-align: left;
+    border-bottom: 0.5px solid var(--border2);
+  }
+
+  .gantt tr.total-row td {
+    background: var(--surface2);
+    font-weight: 600;
+    font-size: 11px;
+  }
+
+  .gantt tr.warn-row td {
+    background: var(--amber-bg);
+  }
+
+  .bar {
+    border-radius: 3px;
+    height: 16px;
+    width: 100%;
+  }
+
+  .legend {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: var(--text2);
+    margin-top: 12px;
+  }
+
+  .legend span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>作業時程推算儀表板</h1>
+    <p>截止日期：2027年8月底　｜　所有欄位均可調整，自動計算時程</p>
+  </header>
+
+  <div class="cards" id="summary-cards"></div>
+
+  <div class="tables-grid">
+    <div>
+      <div class="section-label">候選階段</div>
+      <div class="table-wrap"><table id="table-a"></table></div>
+    </div>
+    <div>
+      <div class="section-label">標章階段</div>
+      <div class="table-wrap"><table id="table-b"></table></div>
+    </div>
+  </div>
+
+  <div class="gantt-section">
+    <div class="section-label">甘特圖（月份排程）</div>
+    <div class="gantt-wrap">
+      <table class="gantt" id="gantt"></table>
+    </div>
+    <div class="legend">
+      <span><span class="legend-dot" style="background:#185FA5"></span>候選階段</span>
+      <span><span class="legend-dot" style="background:#3B6D11"></span>標章階段</span>
+      <span><span class="legend-dot" style="background:#c0392b"></span>超出截止</span>
+    </div>
+  </div>
+</div>
+
+<script>
+const DEADLINE_MONTHS = 15;
+const MONTH_LABELS = [];
+for (let i = 0; i < DEADLINE_MONTHS; i++) {
+  const d = new Date(2026, 5 + i, 1);
+  MONTH_LABELS.push((d.getMonth() + 1) + '月' + (i === 0 ? d.getFullYear() : ''));
+}
+
+const tasksA = [
+  { name: '繪圖、資料蒐集',   default: 3,   key: 'a1' },
+  { name: '製作報告書',        default: 2,   key: 'a2' },
+  { name: '評定意見',          default: 3,   key: 'a3' },
+  { name: '候選評定報告書',    default: 1,   key: 'a4' },
+  { name: '換證',              default: 2,   key: 'a5' },
+];
+const tasksB = [
+  { name: '施工',                        default: 2,   key: 'b0' },
+  { name: '現勘確認現況（含資料製作）',  default: 2,   key: 'b1' },
+  { name: '評定意見',                    default: 3,   key: 'b2' },
+  { name: '委員現勘',                    default: 0.5, key: 'b3' },
+  { name: '標章評定報告書',              default: 1,   key: 'b4' },
+  { name: '換證',                        default: 2,   key: 'b5' },
+];
+
+function getVals() {
+  const v = {};
+  [...tasksA, ...tasksB].forEach(t => {
+    const el = document.getElementById('inp-' + t.key);
+    v[t.key] = el ? (parseFloat(el.value) || 0) : t.default;
+  });
+  return v;
+}
+
+function totalAll(tasks, vals) {
+  return tasks.reduce((s, t) => s + vals[t.key], 0);
+}
+
+function renderTable(tableId, tasks, vals) {
+  const el = document.getElementById(tableId);
+  el.innerHTML = `<thead><tr>
+    <th style="width:65%">作業階段</th>
+    <th style="width:35%">作業時間（月）</th>
+  </tr></thead><tbody>
+  ${tasks.map(t => `<tr>
+    <td>${t.name}</td>
+    <td><input type="number" id="inp-${t.key}" value="${vals[t.key]}" min="0" max="36" step="0.5" oninput="onInput()"></td>
+  </tr>`).join('')}
+  <tr class="total-row">
+    <td>合計</td>
+    <td id="total-${tableId}" style="text-align:center">${totalAll(tasks, vals).toFixed(1)}</td>
+  </tr></tbody>`;
+}
+
+function renderSummary(vals) {
+  const tA = totalAll(tasksA, vals);
+  const tB = totalAll(tasksB, vals);
+  const grandTotal = tA + tB;
+  const buffer = DEADLINE_MONTHS - grandTotal;
+  const ovA = tA > DEADLINE_MONTHS, ovB = tB > DEADLINE_MONTHS;
+  const bufClass = buffer < 0 ? 'danger' : buffer < 2 ? 'warn' : '';
+  document.getElementById('summary-cards').innerHTML = `
+    <div class="card">
+      <div class="card-label">候選階段合計</div>
+      <div class="card-val ${ovA ? 'danger' : ''}">${tA.toFixed(1)}<span class="unit">月</span></div>
+    </div>
+    <div class="card">
+      <div class="card-label">標章階段合計</div>
+      <div class="card-val ${ovB ? 'danger' : ''}">${tB.toFixed(1)}<span class="unit">月</span></div>
+    </div>
+    <div class="card">
+      <div class="card-label">截止可用月數</div>
+      <div class="card-val">${DEADLINE_MONTHS}<span class="unit">月</span></div>
+    </div>
+    <div class="card">
+      <div class="card-label">剩餘緩衝</div>
+      <div class="card-val ${bufClass}">${buffer.toFixed(1)}<span class="unit">月</span></div>
+    </div>`;
+}
+
+function renderGantt(vals) {
+  const el = document.getElementById('gantt');
+  const header = `<tr>
+    <th class="task-name">作業階段</th>
+    ${MONTH_LABELS.map(m => `<th>${m}</th>`).join('')}
+  </tr>`;
+
+  function taskRows(tasks, catName, color, offset) {
+    let rows = `<tr class="cat-row"><td colspan="${DEADLINE_MONTHS + 1}">${catName}</td></tr>`;
+    let cursor = offset;
+    tasks.forEach(t => {
+      const dur = vals[t.key];
+      const start = cursor, end = cursor + dur;
+      let cells = '';
+      let i = 0;
+      while (i < DEADLINE_MONTHS) {
+        if (i >= start && i < end) {
+          const span = Math.max(1, Math.round(end - start));
+          const capped = Math.min(span, DEADLINE_MONTHS - i);
+          const barColor = end > DEADLINE_MONTHS ? '#c0392b' : color;
+          cells += `<td colspan="${capped}" style="padding:4px 3px">
+            <div class="bar" style="background:${barColor}"></div>
+          </td>`;
+          i += capped;
+        } else {
+          cells += `<td></td>`;
+          i++;
+        }
+      }
+      rows += `<tr><td class="task-name">${t.name}</td>${cells}</tr>`;
+      cursor += dur;
+    });
+    const total = totalAll(tasks, vals);
+    const over = (offset + total) > DEADLINE_MONTHS;
+    rows += `<tr class="${over ? 'warn-row' : 'total-row'}">
+      <td class="task-name">小計</td>
+      <td colspan="${DEADLINE_MONTHS}" style="text-align:left;font-size:11px;color:${over ? 'var(--red)' : 'var(--text2)'}">
+        共 ${total.toFixed(1)} 月${over ? '　⚠ 超出截止日期' : ''}
+      </td>
+    </tr>`;
+    return rows;
+  }
+
+  const offsetB = totalAll(tasksA, vals);
+  el.innerHTML = `<thead>${header}</thead><tbody>
+    ${taskRows(tasksA, '候選階段', '#185FA5', 0)}
+    ${taskRows(tasksB, '標章階段', '#3B6D11', offsetB)}
+  </tbody>`;
+}
+
+function onInput() {
+  const vals = getVals();
+  renderSummary(vals);
+  renderGantt(vals);
+  document.getElementById('total-table-a').textContent = totalAll(tasksA, vals).toFixed(1);
+  document.getElementById('total-table-b').textContent = totalAll(tasksB, vals).toFixed(1);
+}
+
+function init() {
+  const vals = {};
+  [...tasksA, ...tasksB].forEach(t => vals[t.key] = t.default);
+  renderTable('table-a', tasksA, vals);
+  renderTable('table-b', tasksB, vals);
+  renderSummary(vals);
+  renderGantt(vals);
+}
+init();
+</script>
+</body>
+</html>
